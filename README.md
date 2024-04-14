@@ -2,7 +2,8 @@
 
 ### How to compile
 ```bash
-cc src/* -o oe_ttt
+cc src/*.c -o oe_ttt
+./oe_ttt
 ```
 
 ### How to play
