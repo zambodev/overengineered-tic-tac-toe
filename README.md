@@ -14,3 +14,6 @@ Press *enter* to set the cell value
  - [ ] Scaling graphics
  - [ ] Windows support
  - [ ] Prettier graphics 
+
+### Why tf I built this?
+I got challenged by a mathematician and my ego couldn't let him stand a chance
