@@ -60,55 +60,67 @@ int TTT_Ges(void)
             // Wait till key is pressed
             char key = GUI_WaitKeyPress();
 
-            if(key == 'w' || key == 66)
+            switch(key)
             {
-                ++y;
-                if(y > 2)
-                    y = 0;
-                else if(y < 0)
-                    y = 2; 
-            }
-            else if(key == 's' || key == 65)
-            {
-                --y;
-                if(y > 2)
-                    y = 0;
-                else if(y < 0)
-                    y = 2;
-            }
-            else if(key == 'd' || key == 67)
-            {
-                ++x;
-                if(x > 2)
-                    x = 0;
-                else if(x < 0)
-                    x = 2;
-            }
-            else if(key == 'a' || key == 68)
-            {
-                --x;
-                if(x > 2)
-                    x = 0;
-                else if(x < 0)
-                    x = 2;
-            }
-            else if(key == 10)
-            {
-                TTT_SetValue();
-                    
-                // Increase game turn counter
-                uint8_t turnCount = (GameData & 0x3C000000U) >> 0x1AU;
-                ++turnCount;
-
-                if(turnCount == 9)
+                case 66:
+                case 'w':
                 {
-                    // Go into Stop state
-                    GameData |= 0xC00000U;
-                    return 0;
-                }
+                    ++y;
+                    if(y > 2)
+                        y = 0;
+                    else if(y < 0)
+                        y = 2; 
+                } break;
+                case 65:
+                case 's':
+                {
+                    --y;
+                    if(y > 2)
+                        y = 0;
+                    else if(y < 0)
+                        y = 2;
+                } break;
+                case 67:
+                case 'd':
+                {
+                    ++x;
+                    if(x > 2)
+                        x = 0;
+                    else if(x < 0)
+                        x = 2;
+                } break;
+                case 68:
+                case 'a':
+                {
+                    --x;
+                    if(x > 2)
+                        x = 0;
+                    else if(x < 0)
+                        x = 2;
+                } break;
+                case 32:
+                case 10:
+                {
+                    TTT_SetValue();
+                        
+                    // Increase game turn counter
+                    uint8_t turnCount = (GameData & 0x3C000000U) >> 0x1AU;
+                    ++turnCount;
 
-                GameData &= 0xC3FFFFFFU;
-                GameData |= (turnCount << 0x1AU);
+                    if(turnCount == 9)
+                    {
+                        // Go into Stop state
+                        GameData |= 0xC00000U;
+                        return 0;
+                    }
+
+                    GameData &= 0xC3FFFFFFU;
+                    GameData |= (turnCount << 0x1AU);
+                } break;
+                default:
+                {
+                    return 0;
+                } break;
             }
 
             // Update cursor position
@@ -117,11 +129,8 @@ int TTT_Ges(void)
 
             // Check if there is a winner
             if(TTT_CheckWin() != 0)
-            {
                 // Go into Stop state
                 GameData |= 0xC00000U;
-                return 0;
-            }
         } break;
         // Pause
         case 0x02:

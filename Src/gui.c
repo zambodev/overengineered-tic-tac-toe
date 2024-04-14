@@ -54,6 +54,7 @@ void GUI_Init(void)
     wprintf(L"\x1b[2J\x1b[H");
     GUI_Draw();
     GUI_SetCursorPosition(0, 0);
+    fflush(stdout);
 }
 
 void GUI_Del(char winner)
@@ -63,6 +64,7 @@ void GUI_Del(char winner)
     else
         wprintf(L"\x1B[6;0HIt's a tie!\n");
     
+    fflush(stdout);
     tcsetattr(STDIN_FILENO, TCSANOW, &TIO_Old);
 }
 
@@ -72,22 +74,29 @@ void GUI_SetCursorPosition(int8_t x, int8_t y)
     int ypos = 1 + y * 2;
 
     wprintf(L"\x1B[%d;%dH", ypos, xpos);
+    fflush(stdout);
 }
 
 char GUI_WaitKeyPress(void)
 {
 	unsigned char value;
+	static fd_set rfds;
+	static struct timeval tv;
 
-    while(1)
+    FD_ZERO(&rfds);
+    FD_SET(0, &rfds);
+
+    tv.tv_sec = 0;
+    tv.tv_usec = 200;
+
+    if(select(1, &rfds, NULL, NULL, &tv) <= 0)
+        return -1;
+
+    value = getchar();
+    if(value == '\033')
     {
+        getchar();
         value = getchar();
-        if(value == '\033')
-        {
-            getchar();
-            value = getchar();
-        }
-
-        break;
     }
 
     return value;
@@ -99,4 +108,6 @@ void GUI_SetValue(int8_t x, int8_t y, uint8_t isPlayerX)
         wprintf(L"X\x1B[1D");
     else
         wprintf(L"O\x1B[1D");
+
+    fflush(stdout);
 }
