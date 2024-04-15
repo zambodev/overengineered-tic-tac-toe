@@ -110,6 +110,16 @@ static int TTT_CheckWin(uint32_t *bitmask)
     return 0;
 }
 
+int minimax(uint32_t bitmask)
+{
+    if(TTT_CheckWin(&bitmask) !=0)
+    {
+        if(((GameData & 0x03000000U) >> 0x18U) == 0x03U)
+            return 1;
+        else 
+            return 0;
+    }
+}
 
 int TTT_Ges(void)
 {
@@ -171,9 +181,11 @@ int TTT_Ges(void)
                     uint8_t turnCount = (GameData & 0x3C000000U) >> 0x1AU;
                     ++turnCount;
 
+                    
                     if(turnCount == 9)
                     {
                         // Go into Stop state
+                        GameData &= 0xFCFFFFFFU;
                         GameData |= 0xC00000U;
                         return 0;
                     }
