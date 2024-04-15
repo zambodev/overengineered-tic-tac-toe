@@ -60,7 +60,7 @@ void GUI_Init(void)
 void GUI_Del(char winner)
 {
     if(winner != ' ')
-        wprintf(L"\x1B[6;0HPlayer %c won!\n", winner);
+        wprintf(L"\x1B[6;0HPlayer %c win!\n", winner);
     else
         wprintf(L"\x1B[6;0HIt's a tie!\n");
     
@@ -77,7 +77,7 @@ void GUI_SetCursorPosition(int8_t x, int8_t y)
     fflush(stdout);
 }
 
-char GUI_WaitKeyPress(void)
+char GUI_GetKeyPress(void)
 {
 	unsigned char value;
 	static fd_set rfds;

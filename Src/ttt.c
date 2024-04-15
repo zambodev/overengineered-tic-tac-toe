@@ -1,3 +1,4 @@
+#include <stdint.h>
 #include "ttt.h"
 #include "gui.h"
 
@@ -16,6 +17,14 @@
  * Bit 26 to 29 are used as turn counter
  * Last 2 bits are unused for now
 */
+
+typedef enum
+{
+    TTT_START = 0x00U,
+    TTT_RUNNING,
+    TTT_PAUSE,
+    TTT_STOP
+} TTT_StateTypeDef;
 
 /* Private variables */
 static uint32_t GameData;
@@ -40,25 +49,87 @@ static const uint32_t wincasesY[8] = {
     0x00002082U
 };  
 
+static int TTT_SetValue(uint32_t *bitmask)
+{
+    // Get X and Y
+    int8_t x = ((*bitmask & 0x0C0000U) >> 0x12U);
+    int8_t y = ((*bitmask & 0x300000U) >> 0x14U);
+
+    // Check if the spot is free
+    if((*bitmask & (0b10U << ((y * 3 + x) * 2))) != 0)
+        return -1;
+
+    GUI_SetValue(x, y, ((*bitmask & 0x01000000U) >> 0x18U));
+
+    // Check which player has made the move
+    if((*bitmask & 0x01000000U) != 0x00U)
+    {
+        *bitmask |= (0x03U << ((y * 3 + x) * 2));
+        // Set O player turn
+        *bitmask &= 0xFEFFFFFFU;
+        return 0;
+    }
+    else
+    { 
+        *bitmask |= (0x02U << ((y * 3 + x) * 2));
+        // Set X player turn
+        *bitmask |= 0x01000000U;
+        return 0;
+    }
+}
+
+static int TTT_SetPos(uint32_t *bitmask, uint32_t x, uint32_t y)
+{
+    if(x > 2 || x < 0 || y > 2 || y < 0)
+        return -1;
+
+    *bitmask &= 0xFFC3FFFFU;
+    *bitmask |= ((y << 20) | (x << 18));
+    
+    return 0;
+}
+
+static int TTT_CheckWin(uint32_t *bitmask)
+{
+    for(int i = 0; i < 8; ++i)
+    {
+        uint32_t res = *bitmask & wincasesX[i];
+
+        if(res == wincasesX[i])
+        {
+            *bitmask |= 0x01000000U;
+            return 1;
+        }
+        else if(res == wincasesY[i])
+        {
+            *bitmask &= 0xFEFFFFFFU;
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+
 int TTT_Ges(void)
 {
     switch((GameData & 0xC00000U) >> 0x16U)
     {
         // Start
-        case 0x00:
+        case TTT_START:
         {
             GUI_Init();
             // Go into Run state
-            GameData |= 0x1400000U;
+            GameData |= 0x3400000U;
         } break;
         // Run
-        case 0x01:
+        case TTT_RUNNING:
         {
             // Get X and Y
             int8_t x = ((GameData & 0x0C0000U) >> 0x12U);
             int8_t y = ((GameData & 0x300000U) >> 0x14U);
             // Wait till key is pressed
-            char key = GUI_WaitKeyPress();
+            char key = GUI_GetKeyPress();
 
             switch(key)
             {
@@ -66,42 +137,35 @@ int TTT_Ges(void)
                 case 'w':
                 {
                     ++y;
-                    if(y > 2)
-                        y = 0;
-                    else if(y < 0)
-                        y = 2; 
+                    if(y > 2) y = 0;
+                    else if(y < 0) y = 2; 
                 } break;
                 case 65:
                 case 's':
                 {
                     --y;
-                    if(y > 2)
-                        y = 0;
-                    else if(y < 0)
-                        y = 2;
+                    if(y > 2) y = 0;
+                    else if(y < 0) y = 2;
                 } break;
                 case 67:
                 case 'd':
                 {
                     ++x;
-                    if(x > 2)
-                        x = 0;
-                    else if(x < 0)
-                        x = 2;
+                    if(x > 2) x = 0;
+                    else if(x < 0) x = 2;
                 } break;
                 case 68:
                 case 'a':
                 {
                     --x;
-                    if(x > 2)
-                        x = 0;
-                    else if(x < 0)
-                        x = 2;
+                    if(x > 2) x = 0;
+                    else if(x < 0) x = 2;
                 } break;
                 case 32:
                 case 10:
                 {
-                    TTT_SetValue();
+                    if(TTT_SetValue(&GameData) == -1)
+                        return 0;
                         
                     // Increase game turn counter
                     uint8_t turnCount = (GameData & 0x3C000000U) >> 0x1AU;
@@ -124,21 +188,22 @@ int TTT_Ges(void)
             }
 
             // Update cursor position
-            TTT_SetPos(x, y);
+            if(TTT_SetPos(&GameData, x, y) == -1)
+                return 0;
             GUI_SetCursorPosition(x, y);
 
             // Check if there is a winner
-            if(TTT_CheckWin() != 0)
+            if(TTT_CheckWin(&GameData) != 0)
                 // Go into Stop state
                 GameData |= 0xC00000U;
         } break;
         // Pause
-        case 0x02:
+        case TTT_PAUSE:
         {
             // TODO
         } break;
         // Stop
-        case 0x03:
+        case TTT_STOP:
         {   
             char winner;
             if(((GameData & 0x03000000U) >> 0x18U) == 0x03U)
@@ -154,67 +219,5 @@ int TTT_Ges(void)
         } break;
     }
 
-    return 0;
-}
-
-int TTT_CheckWin(void)
-{
-    for(int i = 0; i < 8; ++i)
-    {
-        uint32_t res = GameData & wincasesX[i];
-
-        if(res == wincasesX[i])
-        {
-            GameData |= 0x03000000U;
-            return 1;
-        }
-        else if(res == wincasesY[i])
-        {
-            GameData &= 0xFCFFFFFFU;
-            GameData |= 0x02000000U;
-            return 1;
-        }
-    }
-
-    return 0;
-}
-
-int TTT_SetValue(void)
-{
-    // Get X and Y
-    int8_t x = ((GameData & 0x0C0000U) >> 0x12U);
-    int8_t y = ((GameData & 0x300000U) >> 0x14U);
-
-    // Check if the spot is free
-    if((GameData & (0b10U << ((y * 3 + x) * 2))) != 0)
-        return 0;
-
-    GUI_SetValue(x, y, ((GameData & 0x01000000U) >> 18));
-
-    // Check which player has made the move
-    if((GameData & 0x01000000U) != 0x00U)
-    {
-        GameData |= (0x03U << ((y * 3 + x) * 2));
-        // Set other player turn
-        GameData &= 0xFEFFFFFFU;
-        return 1;
-    }
-    else
-    { 
-        GameData |= (0x02U << ((y * 3 + x) * 2));
-        GameData |= 0x01000000U;
-        
-        return -1;
-    }
-}
-
-int TTT_SetPos(uint32_t x, uint32_t y)
-{
-    if(x > 2 || x < 0 || y > 2 || y < 0)
-        return -1;
-
-    GameData &= 0xFFC3FFFFU;
-    GameData |= ((y << 20) | (x << 18));
-    
     return 0;
 }
